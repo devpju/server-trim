@@ -206,8 +206,73 @@ const PASSWORD_RESET_SUCCESS_TEMPLATE = `<!DOCTYPE html>
 </html>
 `;
 
+const WELCOME_EMAIL_TEMPLATE = `<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Đăng Ký Thành Công</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f4f4f4;
+            margin: 0;
+            padding: 0;
+        }
+        .container {
+            width: 100%;
+            max-width: 600px;
+            margin: 20px auto;
+            background-color: #ffffff;
+            border-radius: 5px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+        }
+        .header {
+            background-color: #007bff;
+            color: white;
+            padding: 20px;
+            text-align: center;
+        }
+        .header h1 {
+            margin: 0;
+        }
+        .content {
+            padding: 20px;
+        }
+        .footer {
+            padding: 10px;
+            text-align: center;
+            font-size: 12px;
+            color: #777;
+            background-color: #f4f4f4;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <div class="header">
+        <h1>Đăng Ký Thành Công</h1>
+    </div>
+    <div class="content">
+        <p>Xin chào <strong>{fullName}</strong>!</p>
+        <p>Chúc mừng bạn! Bạn đã đăng ký tài khoản thành công với chúng tôi.</p>
+        <p>Bây giờ bạn có thể đăng nhập và bắt đầu trải nghiệm dịch vụ của chúng tôi.</p>
+        <p>Nếu bạn có bất kỳ câu hỏi nào, đừng ngần ngại liên hệ với chúng tôi.</p>
+    </div>
+    <div class="footer">
+        <p>&copy; 2024 - Trim. Bảo lưu mọi quyền.</p>
+    </div>
+</div>
+
+</body>
+</html>
+`;
+
 export {
   VERIFICATION_EMAIL_TEMPLATE,
   PASSWORD_RESET_REQUEST_TEMPLATE,
   PASSWORD_RESET_SUCCESS_TEMPLATE,
+  WELCOME_EMAIL_TEMPLATE,
 };

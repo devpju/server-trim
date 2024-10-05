@@ -3,7 +3,10 @@ import bcrypt from "bcrypt";
 import dotenv from "dotenv";
 import generateVerificationToken from "../utils/generateVerificationToken.js";
 import generateTokenAndSetCookie from "../utils/generateTokenAndSetCookie.js";
-import sendVerificationEmail from "../config/mailtrap/emails.js";
+import {
+  sendVerificationEmail,
+  sendWelcomeEmail,
+} from "../config/mailtrap/emails.js";
 
 dotenv.config();
 
@@ -26,7 +29,7 @@ const register = async (req, res) => {
       email,
       password: hashPassword,
       verificationToken,
-      verificationTokenExpiresAt: Date.now() + 24 * 3600 * 1000,
+      verificationTokenExpiresAt: Date.now() + 10 * 60 * 1000,
     });
     console.log(user);
     await user.save();
@@ -46,4 +49,32 @@ const register = async (req, res) => {
   }
 };
 
-export { register };
+const verifyEmail = async (req, res) => {
+  const { code } = req.body;
+  try {
+    const user = await User.findOne({
+      verificationToken: code,
+      verificationTokenExpiresAt: { $gt: Date.now() },
+    });
+
+    if (!user) {
+      return res
+        .status(400)
+        .json({ success: false, message: "Mã không hợp lệ hoặc đã hết hạn" });
+    }
+
+    sendWelcomeEmail(email, fullName);
+
+    user.isVerified = true;
+    user.verificationToken = undefined;
+    user.verificationTokenExpiresAt = undefined;
+
+    await user.save();
+  } catch (error) {
+    console.log(error);
+  }
+};
+
+const getEmail = () => {};
+
+export { register, verifyEmail };
