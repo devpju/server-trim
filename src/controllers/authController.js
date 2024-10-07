@@ -2,111 +2,91 @@ import User from '../models/UserModel.js';
 import bcrypt from 'bcrypt';
 import dotenv from 'dotenv';
 import generateVerificationToken from '../utils/generateVerificationToken.js';
-import generateTokenAndSetCookie from '../utils/generateTokenAndSetCookie.js';
-import { sendVerificationEmail, sendWelcomeEmail } from '../config/mailtrap/emails.js';
+import { sendVerificationEmail } from '../config/mailtrap/emailService.js';
 
 dotenv.config();
 
-const TOKEN_EXPIRATION_TIME = 10 * 60 * 1000; // 10 phút
+const EXPIRATION_TIME = 10 * 60 * 1000;
 
 const register = async (req, res) => {
-  const { email, password, fullName } = req.body;
+  const { fullName, email, password } = req.body;
 
   try {
     const existingUser = await User.findOne({ email });
+
     if (existingUser) {
-      return res.status(400).json({
-        status: 'error',
-        code: 400,
-        message: 'Email đã được sử dụng.',
-      });
+      return res.status(400).json({ status: 'error', message: 'Email này đã được sử dụng' });
     }
 
-    const hashPassword = await hashUserPassword(password);
-    const code = generateVerificationToken();
+    const hashedPassword = await bcrypt.hash(password, 12);
+    const verificationToken = generateVerificationToken();
 
-    const newUser = await createUser({
+    const user = new User({
       fullName,
       email,
-      hashPassword,
-      verificationToken: code,
+      password: hashedPassword,
+      verificationToken,
+      verificationTokenExpiresAt: Date.now() + EXPIRATION_TIME,
     });
 
-    await sendVerificationEmail(newUser.email, code);
+    await user.save();
+    await sendVerificationEmail(email, verificationToken);
 
     const {
       password: _,
       verificationToken: __,
       verificationTokenExpiresAt: ___,
-      isVerified: ____,
+      isVerified,
       ...userData
-    } = newUser.toObject();
+    } = user._doc;
 
     res.status(201).json({
       status: 'success',
-      message: 'Đăng ký tài khoản thành công',
+      message: 'Đăng ký thành công. Vui lòng kiểm tra email để lấy mã xác thực',
       data: userData,
     });
   } catch (error) {
-    res.status(500).json({
-      status: 'error',
-      code: 500,
-      message: 'Có lỗi xảy ra trong quá trình đăng ký.',
-      details: error.message,
-    });
+    res
+      .status(500)
+      .json({ status: 'error', message: 'Có lỗi xảy ra trong quá trình đăng ký', error });
   }
 };
 
 const verifyEmail = async (req, res) => {
-  const { code, email } = req.body;
+  const { verificationToken, email } = req.body;
 
   try {
     const user = await User.findOne({ email });
+
     if (!user) {
-      return res.status(400).json({
-        status: 'error',
-        error: {
-          code: 400,
-          message: `Không tìm thấy người dùng`,
-        },
-      });
+      return res
+        .status(400)
+        .json({ status: 'error', message: `Không tồn tại người dùng có email ${email}` });
     }
 
-    if (user.verificationToken !== code) {
-      return res.status(400).json({
-        status: 'error',
-        error: {
-          code: 400,
-          message: `Mã xác thực không đúng`,
-        },
-      });
+    if (user.verificationToken !== verificationToken) {
+      return res
+        .status(400)
+        .json({ status: 'error', message: 'Mã xác thực không đúng. Vui lòng kiểm tra lại' });
     }
 
     if (user.verificationTokenExpiresAt < Date.now()) {
-      return res.status(400).json({
-        status: 'error',
-        error: {
-          code: 400,
-          message: `Mã này đã hết hạn. Vui lòng gửi lại yêu cầu khác`,
-        },
-      });
+      return res
+        .status(400)
+        .json({ status: 'error', message: 'Mã xác thực đã hết hạn. Vui lòng gửi lại' });
     }
 
-    await confirmUser(user);
-    generateTokenAndSetCookie(res, user._id);
-    await sendWelcomeEmail(user.email, user.fullName);
+    user.isVerified = true;
+    user.verificationToken = undefined;
+    user.verificationTokenExpiresAt = undefined;
 
-    res.status(200).json({
-      status: 'success',
-      message: 'Xác thực tài khoản thành công',
-    });
+    await user.save();
+
+    res.status(200).json({ status: 'success', message: 'Xác thực thành công' });
   } catch (error) {
-    res.status(500).json({
-      status: 'error',
-      code: 500,
-      message: 'Có lỗi xảy ra trong quá trình đăng ký.',
-      details: error.message,
-    });
+    res
+      .status(500)
+      .json({ status: 'error', message: 'Có lỗi xảy ra trong quá trình xác thực', error });
   }
 };
 
@@ -117,68 +97,29 @@ const resendVerificationEmail = async (req, res) => {
     const user = await User.findOne({ email });
 
     if (!user) {
-      return res.status(400).json({
-        status: 'error',
-        error: {
-          code: 400,
-          message: `Không tìm thấy người dùng`,
-        },
-      });
+      return res
+        .status(400)
+        .json({ status: 'error', message: `Không tồn tại người dùng có email ${email}` });
     }
+
     if (user.isVerified) {
-      return res.status(400).json({
-        status: 'error',
-        error: {
-          code: 400,
-          message: `Tài khoản đã được xác thực`,
-        },
-      });
+      return res.status(400).json({ status: 'error', message: 'Tài khoản đã được xác thực' });
     }
 
-    await resendVerificationToken(user);
+    user.verificationToken = generateVerificationToken();
+    user.verificationTokenExpiresAt = Date.now() + EXPIRATION_TIME;
 
-    res.status(200).json({ status: 'success', message: 'Mã xác thực đã được gửi lại.' });
+    await user.save();
+    await sendVerificationEmail(email, user.verificationToken);
+
+    res.status(200).json({ status: 'success', message: 'Mã xác thực đã được gửi lại' });
   } catch (error) {
     res.status(500).json({
       status: 'error',
-      code: 500,
       message: 'Có lỗi xảy ra trong quá trình gửi lại mã xác thực',
-      details: error.message,
+      error,
     });
   }
-};
-
-const resendVerificationToken = async user => {
-  const newVerificationToken = generateVerificationToken();
-  user.verificationToken = newVerificationToken;
-  user.verificationTokenExpiresAt = Date.now() + TOKEN_EXPIRATION_TIME;
-
-  await user.save();
-  await sendVerificationEmail(user.email, newVerificationToken);
-};
-
-// Helper functions
-const hashUserPassword = async password => {
-  const salt = await bcrypt.genSalt(10);
-  return bcrypt.hash(password, salt);
-};
-
-const createUser = async ({ fullName, email, hashPassword, verificationToken }) => {
-  const user = new User({
-    fullName,
-    email,
-    password: hashPassword,
-    verificationToken,
-    verificationTokenExpiresAt: Date.now() + TOKEN_EXPIRATION_TIME,
-  });
-  return await user.save();
-};
-
-const confirmUser = async user => {
-  user.isVerified = true;
-  user.verificationToken = undefined;
-  user.verificationTokenExpiresAt = undefined;
-  await user.save();
 };
 
 export { register, verifyEmail, resendVerificationEmail };

@@ -1,5 +1,5 @@
-import { MailtrapClient } from "mailtrap";
-import dotenv from "dotenv";
+import { MailtrapClient } from 'mailtrap';
+import dotenv from 'dotenv';
 
 dotenv.config();
 
@@ -8,8 +8,8 @@ const mailtrapClient = new MailtrapClient({
 });
 
 const sender = {
-  email: "hello@demomailtrap.com",
-  name: "Trim - Project Manager Web",
+  email: 'hello@demomailtrap.com',
+  name: 'Trim - Project Manager Web',
 };
 
 export { mailtrapClient, sender };
