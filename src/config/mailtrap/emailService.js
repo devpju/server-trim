@@ -16,7 +16,7 @@ const sendEmail = async (recipient, subject, htmlContent, category) => {
       category: category,
     });
   } catch (error) {
-    console.error(error);
+    console.error(error.message);
     throw new Error(`Lỗi gửi email tới ${recipient[0].email}: ${error.message}`);
   }
 };

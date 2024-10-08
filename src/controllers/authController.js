@@ -46,9 +46,8 @@ const register = async (req, res) => {
       data: userData,
     });
   } catch (error) {
-    res
-      .status(500)
-      .json({ status: 'error', message: 'Có lỗi xảy ra trong quá trình đăng ký', error });
+    console.log();
+    res.status(500).json({ status: 'error', message: 'Có lỗi xảy ra trong quá trình đăng ký' });
   }
 };
 
